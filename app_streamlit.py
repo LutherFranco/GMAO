@@ -39,9 +39,24 @@ else:
         
         lignes = []
         for _, row in groupe.iterrows():
-            attribut = row["Attribut manquant"]
-            numero = row.get("Equipement")
-            description = row.get("Description")
+    attribut = row["Attribut manquant"]
+
+    # 🔍 Recherche dynamique des colonnes
+    equipement_col = next((col for col in row.index if "equipement" in col.lower()), None)
+    description_col = next((col for col in row.index if "description" in col.lower()), None)
+
+    numero = row.get(equipement_col) if equipement_col else None
+    description = row.get(description_col) if description_col else None
+
+    if pd.notna(numero):
+        info = f"Numéro {numero}"
+    elif pd.notna(description):
+        info = f"Description : {description}"
+    else:
+        info = "⛔ Info manquante"
+
+    lignes.append(f"- **{info}** → {attribut}")
+
             
             if pd.notna(numero):
                 info = f"Numéro {numero}"
