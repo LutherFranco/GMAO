@@ -36,9 +36,20 @@ else:
     grouped = df_poste.groupby("Équipement")
     for equipement, groupe in grouped:
         st.markdown(f"### 🛠️ {equipement}")
-        st.dataframe(
-            pd.DataFrame({
-                "Attribut manquant": sorted(groupe["Attribut manquant"].unique())
-            }),
-            use_container_width=True
-        )
+        
+        lignes = []
+        for _, row in groupe.iterrows():
+            attribut = row["Attribut manquant"]
+            numero = row.get("Equipement")
+            description = row.get("Description")
+            
+            if pd.notna(numero):
+                info = f"Numéro {numero}"
+            elif pd.notna(description):
+                info = f"Description : {description}"
+            else:
+                info = "⛔ Info manquante"
+
+            lignes.append(f"- **{info}** → {attribut}")
+        
+        st.markdown("\n".join(lignes))
