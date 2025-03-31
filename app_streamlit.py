@@ -39,7 +39,7 @@ else:
         
         lignes = []
         for _, row in groupe.iterrows():
-    attribut = row["Attribut manquant"]
+        attribut = row["Attribut manquant"]
 
     # 🔍 Recherche dynamique des colonnes
     equipement_col = next((col for col in row.index if "equipement" in col.lower()), None)
