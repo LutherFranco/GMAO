@@ -41,16 +41,15 @@ else:
         for _, row in groupe.iterrows():
             attribut = row["Attribut manquant"]
 
-            # 🔍 Recherche fiable : d'abord "Equipement", puis "Équipement" si jamais
             numero = row.get("Equipement") or row.get("Équipement")
             description = row.get("Description")
 
             if pd.notna(numero) and str(numero).strip():
-                info = f"Numéro {numero}"
+                info = str(numero)
             elif pd.notna(description) and str(description).strip():
-                info = f"Description : {description}"
+                info = str(description)
             else:
-                info = f"🔧 Équipement : {equipement}"
+                info = "⛔ Info manquante"
 
             lignes.append(f"- 🔴 **{info}** → {attribut}")
 
