@@ -1,12 +1,11 @@
 import streamlit as st
 import pandas as pd
 
-# === Charger les données ===
+# === Charger le fichier enrichi ===
 try:
-    df_detail = pd.read_excel("résumé_attributs_manquants.xlsx", sheet_name="Détail")
-    df_completude = pd.read_excel("résumé_attributs_manquants.xlsx", sheet_name="Complétude")
+    df_detail = pd.read_excel("résumé_attributs_manquants_enrichi.xlsx")
 except Exception as e:
-    st.error(f"Erreur de lecture du fichier Excel : {e}")
+    st.error(f"❌ Erreur de lecture du fichier Excel enrichi : {e}")
     st.stop()
 
 # === Interface ===
@@ -16,25 +15,15 @@ st.title("📊 Diagnostic GMAO par poste")
 postes = sorted(df_detail["Poste"].dropna().unique())
 poste_choisi = st.selectbox("🔽 Sélectionnez un poste :", postes)
 
-# Complétude visuelle
-info_poste = df_completude[df_completude["Poste"] == poste_choisi]
-if not info_poste.empty:
-    taux = float(info_poste["Taux de complétude (%)"].values[0])
-    niveau = info_poste["Niveau"].values[0]
-    st.metric("Taux de complétude", f"{taux}%", delta=None)
-    st.progress(taux / 100)
-    st.markdown(f"**Niveau :** {niveau}")
-
-# Attributs manquants
-df_poste = df_detail[df_detail["Poste"] == poste_choisi].copy()
-df_poste = df_poste.rename(columns={"Équipement": "Équipement_groupe"})
+# Filtrer sur le poste choisi
+df_poste = df_detail[df_detail["Poste"] == poste_choisi]
 
 if df_poste.empty:
     st.success("✅ Aucun attribut manquant pour ce poste.")
 else:
     st.subheader("🧩 Attributs manquants par équipement")
 
-    grouped = df_poste.groupby("Équipement_groupe")
+    grouped = df_poste.groupby("Équipement")
     for equipement, groupe in grouped:
         st.markdown(f"### 🛠️ {equipement}")
         lignes = []
@@ -42,7 +31,7 @@ else:
         for _, row in groupe.iterrows():
             attribut = row["Attribut manquant"]
 
-            numero = row.get("Equipement") or row.get("Équipement")
+            numero = row.get("Equipement")
             description = row.get("Description")
 
             if pd.notna(numero) and str(numero).strip():
@@ -57,5 +46,5 @@ else:
         st.markdown("\n".join(lignes))
 
 # Optionnel : debug
-if st.checkbox("🛠️ Afficher les colonnes disponibles (debug)"):
-    st.write(df_poste.columns.tolist())
+if st.checkbox("🛠️ Afficher les colonnes disponibles"):
+    st.write(df_detail.columns.tolist())
