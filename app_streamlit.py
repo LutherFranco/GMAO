@@ -41,8 +41,8 @@ else:
         for _, row in groupe.iterrows():
             attribut = row["Attribut manquant"]
 
-            # Recherche des infos contextuelles
-            numero = row.get("Équipement") or row.get("Equipement")
+            # 🔍 Recherche fiable : d'abord "Equipement", puis "Équipement" si jamais
+            numero = row.get("Equipement") or row.get("Équipement")
             description = row.get("Description")
 
             if pd.notna(numero) and str(numero).strip():
