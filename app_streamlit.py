@@ -41,16 +41,20 @@ else:
         for _, row in groupe.iterrows():
             attribut = row["Attribut manquant"]
 
-            # 🔍 Recherche dynamique des colonnes
-            equipement_col = next((col for col in row.index if "equipement" in col.lower()), None)
-            description_col = next((col for col in row.index if "description" in col.lower()), None)
+            # Vérification manuelle des colonnes "Équipement" ou "Equipement" et "Description"
+            numero = row.get("Équipement")
+            if pd.isna(numero) or numero == "":
+                numero = row.get("Equipement")
+            if pd.isna(numero) or numero == "":
+                numero = None
 
-            numero = row.get(equipement_col) if equipement_col else None
-            description = row.get(description_col) if description_col else None
+            description = row.get("Description")
+            if pd.isna(description) or description == "":
+                description = None
 
-            if pd.notna(numero):
+            if numero:
                 info = f"Numéro {numero}"
-            elif pd.notna(description):
+            elif description:
                 info = f"Description : {description}"
             else:
                 info = "⛔ Info manquante"
@@ -58,3 +62,7 @@ else:
             lignes.append(f"- **{info}** → {attribut}")
 
         st.markdown("\n".join(lignes))
+
+# Optionnel : affichage des colonnes pour debug
+if st.checkbox("🛠️ Afficher les colonnes disponibles (debug)"):
+    st.write(df_detail.columns.tolist())
