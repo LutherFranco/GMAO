@@ -26,14 +26,15 @@ if not info_poste.empty:
     st.markdown(f"**Niveau :** {niveau}")
 
 # Attributs manquants
-df_poste = df_detail[df_detail["Poste"] == poste_choisi]
+df_poste = df_detail[df_detail["Poste"] == poste_choisi].copy()
+df_poste = df_poste.rename(columns={"Équipement": "Équipement_groupe"})
 
 if df_poste.empty:
     st.success("✅ Aucun attribut manquant pour ce poste.")
 else:
     st.subheader("🧩 Attributs manquants par équipement")
 
-    grouped = df_poste.groupby("Équipement")
+    grouped = df_poste.groupby("Équipement_groupe")
     for equipement, groupe in grouped:
         st.markdown(f"### 🛠️ {equipement}")
         lignes = []
@@ -57,4 +58,4 @@ else:
 
 # Optionnel : debug
 if st.checkbox("🛠️ Afficher les colonnes disponibles (debug)"):
-    st.write(df_detail.columns.tolist())
+    st.write(df_poste.columns.tolist())
