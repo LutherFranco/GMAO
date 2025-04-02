@@ -1,50 +1,59 @@
 import streamlit as st
 import pandas as pd
 
-# === Charger le fichier enrichi ===
+st.set_page_config(page_title="Diagnostic GMAO", page_icon="📊", layout="centered")
+
+# === Chargement des données ===
 try:
-    df_detail = pd.read_excel("résumé_attributs_manquants_enrichi.xlsx")
+    df = pd.read_excel("résumé_attributs_manquants.xlsx", skiprows=1)
 except Exception as e:
-    st.error(f"❌ Erreur de lecture du fichier Excel enrichi : {e}")
+    st.error(f"❌ Erreur lors de la lecture du fichier : {e}")
     st.stop()
 
-# === Interface ===
-st.title("📊 Diagnostic GMAO par poste")
+# === Transformation des données en format long ===
+data = []
+for poste in df.columns:
+    for ligne in df[poste].dropna():
+        if "→" in str(ligne):
+            identifiant, *attributs = ligne.split("→")
+            identifiant = identifiant.strip()
+            attributs_str = attributs[0].strip() if attributs else ""
+            data.append({
+                "Poste": poste,
+                "Identifiant": identifiant,
+                "Attributs manquants": attributs_str
+            })
 
-# Liste déroulante des postes
-postes = sorted(df_detail["Poste"].dropna().unique())
+df_long = pd.DataFrame(data)
+
+# === Calcul du taux de complétude ===
+def calcul_completude(df_poste):
+    total = len(df_poste)
+    manquants = df_poste["Attributs manquants"].str.strip().replace("", pd.NA).dropna().count()
+    taux = round(100 * (1 - manquants / total), 1)
+    return taux
+
+# === Interface utilisateur ===
+st.title("📊 Diagnostic des attributs manquants")
+st.markdown("Choisissez un poste pour voir les équipements incomplets.")
+
+postes = sorted(df_long["Poste"].unique())
 poste_choisi = st.selectbox("🔽 Sélectionnez un poste :", postes)
 
-# Filtrer sur le poste choisi
-df_poste = df_detail[df_detail["Poste"] == poste_choisi]
+df_poste = df_long[df_long["Poste"] == poste_choisi]
 
-if df_poste.empty:
-    st.success("✅ Aucun attribut manquant pour ce poste.")
-else:
-    st.subheader("🧩 Attributs manquants par équipement")
+# === Affichage du taux de complétude ===
+taux = calcul_completude(df_poste)
+st.metric("Taux de complétude", f"{taux}%", delta=None)
+st.progress(taux / 100)
 
-    grouped = df_poste.groupby("Équipement")
-    for equipement, groupe in grouped:
-        st.markdown(f"### 🛠️ {equipement}")
-        lignes = []
+# === Affichage des attributs manquants ===
+st.subheader("🧩 Équipements incomplets")
 
-        for _, row in groupe.iterrows():
-            attribut = row["Attribut manquant"]
-
-            numero = row.get("Equipement")
-            description = row.get("Description")
-
-            if pd.notna(numero) and str(numero).strip():
-                info = str(numero)
-            elif pd.notna(description) and str(description).strip():
-                info = str(description)
-            else:
-                info = "⛔ Info manquante"
-
-            lignes.append(f"- 🔴 **{info}** → {attribut}")
-
-        st.markdown("\n".join(lignes))
-
-# Optionnel : debug
-if st.checkbox("🛠️ Afficher les colonnes disponibles"):
-    st.write(df_detail.columns.tolist())
+for _, ligne in df_poste.iterrows():
+    identifiant = ligne["Identifiant"]
+    attributs = ligne["Attributs manquants"]
+    if attributs.strip():
+        st.markdown(f"#### 🛠️ {identifiant}")
+        for attribut in attributs.split(","):
+            st.markdown(f"- ❌ **{attribut.strip()}**")
