@@ -182,10 +182,8 @@ def export_pdf(poste, df_poste_manquants, taux, label):
 
 if st.button("📄 Exporter en PDF"):
     pdf = export_pdf(poste_choisi, df_poste_manquants, taux_completude, label)
-    buffer = BytesIO()
-    pdf.output(buffer)
-    buffer.seek(0)
-    b64 = base64.b64encode(buffer.read()).decode()
+    pdf_bytes = pdf.output(dest='S').encode('latin-1')
+    b64 = base64.b64encode(pdf_bytes).decode()
     href = f'<a href="data:application/octet-stream;base64,{b64}" download="{poste_choisi}_diagnostic.pdf">📥 Télécharger le PDF</a>'
     st.markdown(href, unsafe_allow_html=True)
 
