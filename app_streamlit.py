@@ -3,9 +3,6 @@ import pandas as pd
 
 st.set_page_config(page_title="Diagnostic GMAO", page_icon="📊", layout="wide")
 
-# === Logo ENEDIS ===
-st.image("https://media.enedis.fr/image/logo-enedis.svg", width=200)
-
 st.markdown("""
     <style>
     .title {
@@ -38,6 +35,12 @@ st.markdown("""
         font-size: 18px;
         font-weight: bold;
         padding-top: 10px;
+    }
+    .signature {
+        font-size: 11px;
+        text-align: right;
+        color: grey;
+        padding-top: 50px;
     }
     </style>
 """, unsafe_allow_html=True)
@@ -159,3 +162,6 @@ for type_eq in sorted(df_poste_manquants["Type d'équipement"].unique()):
         st.markdown(f'<div class="equipment-id">🛠️ {identifiant}</div>', unsafe_allow_html=True)
         for attribut in attributs.split(","):
             st.markdown(f'<div class="missing-attr">- ❌ <strong>{attribut.strip()}</strong></div>', unsafe_allow_html=True)
+
+# === Signature ===
+st.markdown('<div class="signature">created by Luther FRANCO RONDISSON</div>', unsafe_allow_html=True)
