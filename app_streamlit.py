@@ -3,8 +3,8 @@ import pandas as pd
 
 st.set_page_config(page_title="Diagnostic GMAO", page_icon="📊", layout="wide")
 
-# === Logo ENEDIS ===
-st.image("https://upload.wikimedia.org/wikipedia/fr/thumb/f/f7/Enedis_logo.svg/1280px-Enedis_logo.svg.png", width=200)
+# === Logo ENEDIS (image fixe) ===
+st.image("https://upload.wikimedia.org/wikipedia/commons/thumb/8/84/Logo_Enedis.svg/512px-Logo_Enedis.svg.png", width=200)
 
 st.markdown("""
     <style>
@@ -58,8 +58,9 @@ attributs_attendus = {
     "CT": 1
 }
 
-# === Traitement du fichier en structure exploitable ===
-data = []
+# === Traitement : tableau complet de tous les équipements (y compris ceux sans attributs manquants) ===
+data_complet = []
+data_manquants = []
 colonnes = df.columns
 
 for i in range(0, len(colonnes), 4):
@@ -77,49 +78,67 @@ for i in range(0, len(colonnes), 4):
             identifiant, *attributs = ligne.split("→")
             identifiant = identifiant.strip()
             attributs_str = attributs[0].strip() if attributs else ""
+        else:
+            identifiant = str(ligne).strip() if pd.notna(ligne) else None
+            attributs_str = ""
 
-            if attributs_str:
-                data.append({
-                    "Poste": poste,
-                    "Type d'équipement": equipement_type,
-                    "Identifiant": identifiant,
-                    "Attributs manquants": attributs_str
-                })
+        if identifiant:
+            data_complet.append({
+                "Poste": poste,
+                "Type d'équipement": equipement_type,
+                "Identifiant": identifiant,
+                "Attributs manquants": attributs_str
+            })
+        if attributs_str:
+            data_manquants.append({
+                "Poste": poste,
+                "Type d'équipement": equipement_type,
+                "Identifiant": identifiant,
+                "Attributs manquants": attributs_str
+            })
 
-final_df = pd.DataFrame(data)
+# DataFrame avec tous les équipements (complets + incomplets)
+df_complet = pd.DataFrame(data_complet)
+df_manquants = pd.DataFrame(data_manquants)
 
 # === Interface utilisateur ===
 st.markdown('<div class="title">📊 Diagnostic des attributs manquants</div>', unsafe_allow_html=True)
 st.markdown('<div class="subtitle">Choisissez un poste pour voir les équipements incomplets.</div>', unsafe_allow_html=True)
 
 # === Sélecteur de poste ===
-postes = sorted(final_df["Poste"].dropna().unique())
+postes = sorted(df_complet["Poste"].dropna().unique())
 poste_choisi = st.selectbox("🔽 Sélectionnez un poste :", postes)
 
-df_poste = final_df[final_df["Poste"] == poste_choisi]
+# === Calcul du taux de complétude pondéré ===
+df_poste_total = df_complet[df_complet["Poste"] == poste_choisi]
+df_poste_manquants = df_manquants[df_manquants["Poste"] == poste_choisi]
 
-# === Taux de complétude pondéré ===
-total_attributs = 0
-manquants_total = 0
+nb_attributs_totaux = 0
+nb_attributs_manquants = 0
 
-for _, ligne in df_poste.iterrows():
+for _, ligne in df_poste_total.iterrows():
     type_eq = ligne["Type d'équipement"]
-    nb_attributs_type = attributs_attendus.get(type_eq, 0)
-    total_attributs += nb_attributs_type
-    nb_attributs_manquants = len([a.strip() for a in ligne["Attributs manquants"].split(",") if a.strip()])
-    manquants_total += nb_attributs_manquants
+    nb_attendus = attributs_attendus.get(type_eq, 0)
+    nb_attributs_totaux += nb_attendus
 
-taux_pondere = round(100 * (1 - manquants_total / total_attributs), 1) if total_attributs > 0 else 100.0
+for _, ligne in df_poste_manquants.iterrows():
+    nb_manquants = len([x.strip() for x in ligne["Attributs manquants"].split(",") if x.strip()])
+    nb_attributs_manquants += nb_manquants
 
-st.metric("Taux de complétude pondéré", f"{taux_pondere}%", delta=None)
-st.progress(taux_pondere / 100)
+if nb_attributs_totaux == 0:
+    taux_completude = 100.0
+else:
+    taux_completude = round(100 * (1 - nb_attributs_manquants / nb_attributs_totaux), 1)
+
+st.metric("Taux de complétude pondéré", f"{taux_completude}%", delta=None)
+st.progress(taux_completude / 100)
 
 # === Affichage lisible des équipements incomplets ===
 st.markdown('<div class="subtitle">🧩 Équipements incomplets</div>', unsafe_allow_html=True)
 
-for type_eq in sorted(df_poste["Type d'équipement"].unique()):
+for type_eq in sorted(df_poste_manquants["Type d'équipement"].unique()):
     st.markdown(f'<div class="equipment-type">🧪 {type_eq}</div>', unsafe_allow_html=True)
-    df_type = df_poste[df_poste["Type d'équipement"] == type_eq]
+    df_type = df_poste_manquants[df_poste_manquants["Type d'équipement"] == type_eq]
     for _, ligne in df_type.iterrows():
         identifiant = ligne["Identifiant"]
         attributs = ligne["Attributs manquants"]
