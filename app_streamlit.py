@@ -3,8 +3,8 @@ import pandas as pd
 
 st.set_page_config(page_title="Diagnostic GMAO", page_icon="📊", layout="wide")
 
-# === Logo ENEDIS (image fixe) ===
-st.image("https://upload.wikimedia.org/wikipedia/commons/thumb/8/84/Logo_Enedis.svg/512px-Logo_Enedis.svg.png", width=200)
+# === Logo ENEDIS ===
+st.image("https://media.enedis.fr/image/logo-enedis.svg", width=200)
 
 st.markdown("""
     <style>
@@ -33,6 +33,11 @@ st.markdown("""
     .missing-attr {
         font-size: 15px;
         margin-left: 20px;
+    }
+    .label-completude {
+        font-size: 18px;
+        font-weight: bold;
+        padding-top: 10px;
     }
     </style>
 """, unsafe_allow_html=True)
@@ -130,7 +135,16 @@ if nb_attributs_totaux == 0:
 else:
     taux_completude = round(100 * (1 - nb_attributs_manquants / nb_attributs_totaux), 1)
 
-st.metric("Taux de complétude pondéré", f"{taux_completude}%", delta=None)
+# === Indicateur qualitatif ===
+if taux_completude < 87.5:
+    label = "🔴 Très mauvais"
+elif taux_completude > 97.5:
+    label = "🟢 Excellent"
+else:
+    label = "🟡 Correct"
+
+st.metric("Taux de complétude pondéré", f"{taux_completude}%")
+st.markdown(f'<div class="label-completude">{label}</div>', unsafe_allow_html=True)
 st.progress(taux_completude / 100)
 
 # === Affichage lisible des équipements incomplets ===
