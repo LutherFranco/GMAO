@@ -14,11 +14,11 @@ except Exception as e:
 data = []
 colonnes = df.columns
 
-for i in range(0, len(colonnes), 3):
+for i in range(0, len(colonnes), 4):
     equipement_type = colonnes[i]
-    poste_col = colonnes[i + 1] if i + 1 < len(colonnes) else None
+    poste_col = colonnes[i + 2] if i + 2 < len(colonnes) else None
 
-    if poste_col is None:
+    if poste_col is None or "Poste" not in poste_col:
         continue  # Sauter si pas de colonne poste correspondante
 
     for index, row in df.iterrows():
