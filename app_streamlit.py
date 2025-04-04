@@ -1,7 +1,41 @@
 import streamlit as st
 import pandas as pd
 
-st.set_page_config(page_title="Diagnostic GMAO", page_icon="📊", layout="centered")
+st.set_page_config(page_title="Diagnostic GMAO", page_icon="📊", layout="wide")
+
+# === Logo ENEDIS ===
+st.image("https://upload.wikimedia.org/wikipedia/fr/thumb/f/f7/Enedis_logo.svg/1280px-Enedis_logo.svg.png", width=200)
+
+st.markdown("""
+    <style>
+    .title {
+        font-size: 36px;
+        font-weight: bold;
+        color: #003A70;
+        margin-bottom: 10px;
+    }
+    .subtitle {
+        font-size: 22px;
+        color: #005AA7;
+        margin-top: 25px;
+    }
+    .equipment-type {
+        font-size: 20px;
+        color: #0066CC;
+        font-weight: bold;
+        margin-top: 20px;
+    }
+    .equipment-id {
+        font-size: 16px;
+        font-weight: 600;
+        margin-top: 10px;
+    }
+    .missing-attr {
+        font-size: 15px;
+        margin-left: 20px;
+    }
+    </style>
+""", unsafe_allow_html=True)
 
 # === Chargement des données ===
 try:
@@ -33,7 +67,7 @@ for i in range(0, len(colonnes), 4):
     poste_col = colonnes[i + 2] if i + 2 < len(colonnes) else None
 
     if poste_col is None or "Poste" not in poste_col:
-        continue  # Sauter si pas de colonne poste correspondante
+        continue
 
     for index, row in df.iterrows():
         ligne = row[equipement_type]
@@ -52,21 +86,19 @@ for i in range(0, len(colonnes), 4):
                     "Attributs manquants": attributs_str
                 })
 
-# Transformation en DataFrame
 final_df = pd.DataFrame(data)
 
 # === Interface utilisateur ===
-st.title("📊 Diagnostic des attributs manquants")
-st.markdown("Choisissez un poste pour voir les équipements incomplets.")
+st.markdown('<div class="title">📊 Diagnostic des attributs manquants</div>', unsafe_allow_html=True)
+st.markdown('<div class="subtitle">Choisissez un poste pour voir les équipements incomplets.</div>', unsafe_allow_html=True)
 
 # === Sélecteur de poste ===
 postes = sorted(final_df["Poste"].dropna().unique())
 poste_choisi = st.selectbox("🔽 Sélectionnez un poste :", postes)
 
-# === Filtrage du DataFrame selon le poste choisi ===
 df_poste = final_df[final_df["Poste"] == poste_choisi]
 
-# === Taux de complétude pondéré par attributs ===
+# === Taux de complétude pondéré ===
 total_attributs = 0
 manquants_total = 0
 
@@ -77,23 +109,20 @@ for _, ligne in df_poste.iterrows():
     nb_attributs_manquants = len([a.strip() for a in ligne["Attributs manquants"].split(",") if a.strip()])
     manquants_total += nb_attributs_manquants
 
-if total_attributs > 0:
-    taux_pondere = round(100 * (1 - manquants_total / total_attributs), 1)
-else:
-    taux_pondere = 100.0
+taux_pondere = round(100 * (1 - manquants_total / total_attributs), 1) if total_attributs > 0 else 100.0
 
 st.metric("Taux de complétude pondéré", f"{taux_pondere}%", delta=None)
 st.progress(taux_pondere / 100)
 
-# === Affichage des équipements incomplets triés par type d'équipement ===
-st.subheader("🧩 Équipements incomplets")
+# === Affichage lisible des équipements incomplets ===
+st.markdown('<div class="subtitle">🧩 Équipements incomplets</div>', unsafe_allow_html=True)
 
 for type_eq in sorted(df_poste["Type d'équipement"].unique()):
-    st.markdown(f"### 🧪 {type_eq}")
+    st.markdown(f'<div class="equipment-type">🧪 {type_eq}</div>', unsafe_allow_html=True)
     df_type = df_poste[df_poste["Type d'équipement"] == type_eq]
     for _, ligne in df_type.iterrows():
         identifiant = ligne["Identifiant"]
         attributs = ligne["Attributs manquants"]
-        st.markdown(f"#### 🛠️ {identifiant}")
+        st.markdown(f'<div class="equipment-id">🛠️ {identifiant}</div>', unsafe_allow_html=True)
         for attribut in attributs.split(","):
-            st.markdown(f"- ❌ **{attribut.strip()}**")
+            st.markdown(f'<div class="missing-attr">- ❌ <strong>{attribut.strip()}</strong></div>', unsafe_allow_html=True)
