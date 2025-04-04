@@ -5,7 +5,7 @@ st.set_page_config(page_title="Diagnostic GMAO", page_icon="📊", layout="cente
 
 # === Chargement des données ===
 try:
-    df = pd.read_excel("échantillon.xlsx")
+    df = pd.read_excel("résumé_attributs_manquants.xlsx")
 except Exception as e:
     st.error(f"❌ Erreur lors de la lecture du fichier : {e}")
     st.stop()
