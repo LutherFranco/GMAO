@@ -5,55 +5,70 @@ st.set_page_config(page_title="Diagnostic GMAO", page_icon="📊", layout="cente
 
 # === Chargement des données ===
 try:
-    df = pd.read_excel("résumé_attributs_manquants.xlsx", skiprows=1)
+    df = pd.read_excel("échantillon.xlsx")
 except Exception as e:
     st.error(f"❌ Erreur lors de la lecture du fichier : {e}")
     st.stop()
 
-# === Transformation des données en format long ===
+# === Traitement du fichier en structure exploitable ===
 data = []
-for poste in df.columns:
-    for ligne in df[poste].dropna():
-        if "→" in str(ligne):
+colonnes = df.columns
+
+for i in range(0, len(colonnes), 3):
+    equipement_type = colonnes[i]
+    poste_col = colonnes[i + 1] if i + 1 < len(colonnes) else None
+
+    if poste_col is None:
+        continue  # Sauter si pas de colonne poste correspondante
+
+    for index, row in df.iterrows():
+        ligne = row[equipement_type]
+        poste = row[poste_col]
+
+        if pd.notna(ligne) and "→" in str(ligne):
             identifiant, *attributs = ligne.split("→")
             identifiant = identifiant.strip()
             attributs_str = attributs[0].strip() if attributs else ""
-            data.append({
-                "Poste": poste,
-                "Identifiant": identifiant,
-                "Attributs manquants": attributs_str
-            })
 
-df_long = pd.DataFrame(data)
+            if attributs_str:
+                data.append({
+                    "Poste": poste,
+                    "Type d'équipement": equipement_type,
+                    "Identifiant": identifiant,
+                    "Attributs manquants": attributs_str
+                })
 
-# === Calcul du taux de complétude ===
-def calcul_completude(df_poste):
-    total = len(df_poste)
-    manquants = df_poste["Attributs manquants"].str.strip().replace("", pd.NA).dropna().count()
-    taux = round(100 * (1 - manquants / total), 1)
-    return taux
+# Transformation en DataFrame
+final_df = pd.DataFrame(data)
 
 # === Interface utilisateur ===
 st.title("📊 Diagnostic des attributs manquants")
 st.markdown("Choisissez un poste pour voir les équipements incomplets.")
 
-postes = sorted(df_long["Poste"].unique())
+# === Sélecteur de poste ===
+postes = sorted(final_df["Poste"].dropna().unique())
 poste_choisi = st.selectbox("🔽 Sélectionnez un poste :", postes)
 
-df_poste = df_long[df_long["Poste"] == poste_choisi]
+# === Filtrage du DataFrame selon le poste choisi ===
+df_poste = final_df[final_df["Poste"] == poste_choisi]
 
-# === Affichage du taux de complétude ===
-taux = calcul_completude(df_poste)
+# === Taux de complétude ===
+total = df_poste.shape[0]
+manquants = df_poste["Attributs manquants"].str.strip().replace("", pd.NA).dropna().count()
+taux = round(100 * (1 - manquants / total), 1) if total > 0 else 100.0
+
 st.metric("Taux de complétude", f"{taux}%", delta=None)
 st.progress(taux / 100)
 
-# === Affichage des attributs manquants ===
+# === Affichage des équipements incomplets triés par type d'équipement ===
 st.subheader("🧩 Équipements incomplets")
 
-for _, ligne in df_poste.iterrows():
-    identifiant = ligne["Identifiant"]
-    attributs = ligne["Attributs manquants"]
-    if attributs.strip():
+for type_eq in sorted(df_poste["Type d'équipement"].unique()):
+    st.markdown(f"### 🧪 {type_eq}")
+    df_type = df_poste[df_poste["Type d'équipement"] == type_eq]
+    for _, ligne in df_type.iterrows():
+        identifiant = ligne["Identifiant"]
+        attributs = ligne["Attributs manquants"]
         st.markdown(f"#### 🛠️ {identifiant}")
         for attribut in attributs.split(","):
             st.markdown(f"- ❌ **{attribut.strip()}**")
