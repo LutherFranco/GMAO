@@ -1,5 +1,12 @@
 import streamlit as st
 import pandas as pd
+from fpdf import FPDF
+import base64
+from io import BytesIO
+import unicodedata
+
+def to_latin1(text):
+    return unicodedata.normalize('NFKD', str(text)).encode('latin-1', 'ignore').decode('latin-1')
 
 st.set_page_config(page_title="Diagnostic GMAO", page_icon="📊", layout="wide")
 
@@ -45,14 +52,12 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# === Chargement des données ===
 try:
     df = pd.read_excel("résumé_attributs_manquants.xlsx")
 except Exception as e:
     st.error(f"❌ Erreur lors de la lecture du fichier : {e}")
     st.stop()
 
-# === Dictionnaire du nombre total d'attributs attendus par type d'équipement ===
 attributs_attendus = {
     "TRANSFOHT": 8,
     "DJHTA": 10,
@@ -66,7 +71,6 @@ attributs_attendus = {
     "CT": 1
 }
 
-# === Traitement : tableau complet de tous les équipements (y compris ceux sans attributs manquants) ===
 data_complet = []
 data_manquants = []
 colonnes = df.columns
@@ -105,19 +109,15 @@ for i in range(0, len(colonnes), 4):
                 "Attributs manquants": attributs_str
             })
 
-# DataFrame avec tous les équipements (complets + incomplets)
 df_complet = pd.DataFrame(data_complet)
 df_manquants = pd.DataFrame(data_manquants)
 
-# === Interface utilisateur ===
 st.markdown('<div class="title">📊 Diagnostic des attributs manquants</div>', unsafe_allow_html=True)
 st.markdown('<div class="subtitle">Choisissez un poste pour voir les équipements incomplets.</div>', unsafe_allow_html=True)
 
-# === Sélecteur de poste ===
 postes = sorted(df_complet["Poste"].dropna().unique())
 poste_choisi = st.selectbox("🔽 Sélectionnez un poste :", postes)
 
-# === Calcul du taux de complétude pondéré ===
 df_poste_total = df_complet[df_complet["Poste"] == poste_choisi]
 df_poste_manquants = df_manquants[df_manquants["Poste"] == poste_choisi]
 
@@ -133,12 +133,8 @@ for _, ligne in df_poste_manquants.iterrows():
     nb_manquants = len([x.strip() for x in ligne["Attributs manquants"].split(",") if x.strip()])
     nb_attributs_manquants += nb_manquants
 
-if nb_attributs_totaux == 0:
-    taux_completude = 100.0
-else:
-    taux_completude = round(100 * (1 - nb_attributs_manquants / nb_attributs_totaux), 1)
+taux_completude = 100.0 if nb_attributs_totaux == 0 else round(100 * (1 - nb_attributs_manquants / nb_attributs_totaux), 1)
 
-# === Indicateur qualitatif ===
 if taux_completude < 87.5:
     label = "🔴 Très mauvais"
 elif taux_completude > 97.5:
@@ -150,7 +146,6 @@ st.metric("Taux de complétude pondéré", f"{taux_completude}%")
 st.markdown(f'<div class="label-completude">{label}</div>', unsafe_allow_html=True)
 st.progress(taux_completude / 100)
 
-# === Affichage lisible des équipements incomplets ===
 st.markdown('<div class="subtitle">🧩 Équipements incomplets</div>', unsafe_allow_html=True)
 
 for type_eq in sorted(df_poste_manquants["Type d'équipement"].unique()):
@@ -163,5 +158,35 @@ for type_eq in sorted(df_poste_manquants["Type d'équipement"].unique()):
         for attribut in attributs.split(","):
             st.markdown(f'<div class="missing-attr">- ❌ <strong>{attribut.strip()}</strong></div>', unsafe_allow_html=True)
 
-# === Signature ===
+# === Génération du PDF exportable ===
+def export_pdf(poste, df_poste_manquants, taux, label):
+    pdf = FPDF()
+    pdf.add_page()
+    pdf.set_font("Arial", size=12)
+    pdf.cell(200, 10, txt=to_latin1(f"Diagnostic - Poste {poste}"), ln=True, align='C')
+    pdf.ln(5)
+    pdf.set_font("Arial", size=11)
+    pdf.cell(200, 10, txt=to_latin1(f"Taux de complétude : {taux}% ({label})"), ln=True)
+    pdf.ln(5)
+    for type_eq in sorted(df_poste_manquants["Type d'équipement"].unique()):
+        pdf.set_font("Arial", style='B', size=11)
+        pdf.cell(200, 10, txt=to_latin1(f"Type : {type_eq}"), ln=True)
+        df_type = df_poste_manquants[df_poste_manquants["Type d'équipement"] == type_eq]
+        for _, ligne in df_type.iterrows():
+            pdf.set_font("Arial", style='', size=11)
+            pdf.cell(200, 8, txt=to_latin1(f" - Equipement {ligne['Identifiant']}"), ln=True)
+            for attribut in ligne["Attributs manquants"].split(","):
+                pdf.cell(200, 6, txt=to_latin1(f"     - {attribut.strip()}"), ln=True)
+        pdf.ln(2)
+    return pdf
+
+if st.button("📄 Exporter en PDF"):
+    pdf = export_pdf(poste_choisi, df_poste_manquants, taux_completude, label)
+    buffer = BytesIO()
+    pdf.output(buffer)
+    buffer.seek(0)
+    b64 = base64.b64encode(buffer.read()).decode()
+    href = f'<a href="data:application/octet-stream;base64,{b64}" download="{poste_choisi}_diagnostic.pdf">📥 Télécharger le PDF</a>'
+    st.markdown(href, unsafe_allow_html=True)
+
 st.markdown('<div class="signature">created by Luther FRANCO RONDISSON</div>', unsafe_allow_html=True)
